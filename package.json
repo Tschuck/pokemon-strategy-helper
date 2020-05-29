@@ -1,0 +1,16 @@
+{
+  "author": "Tschuck",
+  "dependencies": {
+    "axios": "^0.19.2",
+    "yargs": "^15.3.1"
+  },
+  "description": "Pokemon team builder for suggesting stats, types and stat distribution.",
+  "license": "ISC",
+  "main": "index.js",
+  "name": "pokemon-strategy-helper",
+  "version": "1.0.0",
+  "scripts": {
+    "setup-data": "node index.js setup-data",
+    "stat-average": "node index.js stat-average"
+  }
+}
