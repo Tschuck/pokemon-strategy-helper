@@ -2,7 +2,7 @@ const pokedex = require('../data/pokedex.json');
 const pokedexEvolved = require('../data/pokedex.evolved.json');
 
 // enhance average stat value with this amount to get clearer results for the over / under estimation 
-const percentageThreshold = 0;
+const percentageThreshold = 10;
 // check if only first or both pokemon types should be checked
 const typeSlots = [ 1, 2, ];
 // calculate over / under estimations with the amount of all pokemon (if false, only internal type will be used)
@@ -128,6 +128,10 @@ const getAverageDisplayTable = () => {
 }
 
 const action = () => {
+  console.log('\nCalculate type-stat average\n');
+  console.log(`  percentageThreshold: +${percentageThreshold}`);
+  console.log(`  typeSlots: ${typeSlots}`);
+  console.log(`  useOverAllStats: ${useOverAllStats}\n`);
   console.table(getAverageDisplayTable());
 };
 

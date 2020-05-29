@@ -4,7 +4,13 @@ NodeJS library that uses [pokeapi](https://pokeapi.co) as database, to get infor
 
 Goals:
 - [x] General data connector logic
-- [x] Type average calculationx
+- [x] Type average calculation
+- [] Pokemon suggestion
+- [] Attack suggestion
+- [] Item suggestion
+- [] Team suggestions
+
+*It's in a very early stage and in a WIP state. So currently not that user friendly. Feel free to ask.*
 
 ## How to use
 At first, please setup your environment. `setup-data` command will download all specific data from the pokeapi before using calculation logic, to reduce network load.
@@ -23,7 +29,7 @@ yarn stat-average
 
 E.g. Only 27% of pokemon with the type electric have a higher defense than the average of all defense values.
 
-```
+``` 
 ┌─────────┬────────────┬───────┬─────────────┬─────────────────┬────────────────┬──────────────┬──────────────┬─────────────┐
 │ (index) │    type    │ total │    speed    │ special-defense │ special-attack │   defense    │    attack    │     hp      │
 ├─────────┼────────────┼───────┼─────────────┼─────────────────┼────────────────┼──────────────┼──────────────┼─────────────┤
