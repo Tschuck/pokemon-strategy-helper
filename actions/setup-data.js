@@ -153,7 +153,23 @@ const buildFullEvolvedDex = async () => {
 const buildMoves = async () => {
   await utils.loadApiList('move', async (previous, newEntries) => {
     const formatted = await Promise.all(newEntries.map(async (move) => {
-      return (await axios.get(move.url)).data;
+      const result = (await axios.get(move.url)).data;
+      return {
+        name: move.name,
+        accuracy: result.accuracy,
+        damage_class: result.damage_class,
+        effect_chance: result.effect_chance,
+        effect_changes: result.effect_changes,
+        effect_entries: result.effect_entries,
+        id: result.id,
+        meta: result.meta,
+        power: result.power,
+        pp: result.pp,
+        priority: result.priority,
+        stat_changes: result.stat_changes,
+        target: result.target,
+        type: result.type,
+      }
     }));
 
     return [...previous, ...formatted];

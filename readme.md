@@ -5,10 +5,10 @@ NodeJS library that uses [pokeapi](https://pokeapi.co) as database, to get infor
 Goals:
 - [x] General data connector logic
 - [x] Type average calculation
-- [] Pokemon suggestion
-- [] Attack suggestion
-- [] Item suggestion
-- [] Team suggestions
+- [ ] Pokemon suggestion
+- [ ] Attack suggestion
+- [ ] Item suggestion
+- [ ] Team suggestions
 
 *It's in a very early stage and in a WIP state. So currently not that user friendly. Feel free to ask.*
 

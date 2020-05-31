@@ -12,7 +12,8 @@
   "version": "1.0.0",
   "scripts": {
     "setup-data": "node index.js setup-data",
-    "stat-average": "node index.js stat-average"
+    "stats": "node index.js stats",
+    "moves": "node index.js moves"
   },
   "devDependencies": {
     "eslint": "6.8.0",
