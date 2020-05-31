@@ -1,8 +1,8 @@
-const pokedex = require('../data/pokedex.json');
-const pokedexEvolved = require('../data/pokedex.evolved.json');
+const pokedex = require('../data/pokemon.json');
+const pokedexEvolved = require('../data/evolution-chain.json');
 
 // enhance average stat value with this amount to get clearer results for the over / under estimation 
-const percentageThreshold = 10;
+const percentageThreshold = 0;
 // check if only first or both pokemon types should be checked
 const typeSlots = [ 1, 2, ];
 // calculate over / under estimations with the amount of all pokemon (if false, only internal type will be used)
@@ -56,7 +56,7 @@ const getTypeAverage = () => {
   const statsPerType = { };
   const overAllStats = { };
 
-  pokedexEvolved.forEach(id => {
+  pokedexEvolved.full.forEach(id => {
     const pokemon = findElementInArray(pokedex, 'id', id);
     typeSlots.forEach((typeIndex) => {
       const typeObj = findElementInArray(pokemon.types, 'slot', typeIndex)
@@ -80,16 +80,22 @@ const getTypeAverage = () => {
     });
   });
 
-  const averageData = {};
+  const averageData = {
+    'all-types': {},
+  };
   const highestTypeForStats = {};
   Object.keys(statsPerType).forEach(type => {
     const statsForType = statsPerType[type];
     const typeAverageObj = { };
     const availableStats = Object.keys(statsForType);
     availableStats.forEach(statName => {
+      if (!averageData['all-types'][statName]) {
+        averageData['all-types'][statName] = getStatPercentageObj(overAllStats[statName])
+      }
+
       typeAverageObj[statName] = getStatPercentageObj(
         statsForType[statName],
-        getStatPercentageObj(overAllStats[statName]),
+        averageData['all-types'][statName],
       );
     });
     averageData[type] = {
