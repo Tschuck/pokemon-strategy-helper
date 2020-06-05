@@ -1,5 +1,6 @@
 const pokedex = require('../data/pokemon.json');
 const pokedexEvolved = require('../data/evolution-chain.json');
+const { findElementInArray } = require('../utils');
 
 // enhance average stat value with this amount to get clearer results for the over / under estimation 
 const percentageThreshold = 0;
@@ -7,10 +8,6 @@ const percentageThreshold = 0;
 const typeSlots = [ 1, 2, ];
 // calculate over / under estimations with the amount of all pokemon (if false, only internal type will be used)
 const useOverAllStats = true;
-
-const findElementInArray = (arr, prop, value) => {
-  return arr.find(el => el[prop] == value);
-};
 
 /**
  * Calculates a stat object for a specific list of stats. Also can take a reference percentage
@@ -133,6 +130,14 @@ const getAverageDisplayTable = () => {
     });
 }
 
+const getPokemonStats = (pokemon) => {
+  const stats = {};
+  Object(pokemon.stats).forEach(({ base_stat, stat }) => {
+    stats[stat.name] = base_stat;
+  });
+  return stats;
+};
+
 const action = () => {
   console.log('\nCalculate type-stat average\n');
   console.log(`  percentageThreshold: +${percentageThreshold}`);
@@ -144,5 +149,6 @@ const action = () => {
 module.exports = {
   action,
   getAverageDisplayTable,
+  getPokemonStats,
   getTypeAverage,
 };

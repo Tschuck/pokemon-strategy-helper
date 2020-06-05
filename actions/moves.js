@@ -1,10 +1,5 @@
 const moves = require('../data/move.json');
-
-const ensureObjEntry = (obj, key, defaultValue) => {
-  if (!obj[key]) {
-    obj[key] = defaultValue;
-  }
-};
+const { ensureObjEntry, findElementInArray } = require('../utils');
 
 const formatMove = (move) => { 
   const formatted = {
@@ -23,9 +18,14 @@ const formatMove = (move) => {
     // users-field => all on users side (e.g. shield for all my pokemon)
     // opponents-field => all on opponents side (e.h. entry hazard) 
     target: move.target.name,
+    // type of the move
+    type: move.type.name,
+    // physic / psychic
+    damageClass: move.damage_class.name,
   };
 
   if (move.meta) {
+    formatted.ailment = move.meta.ailment.name !== 'none' ? move.meta.ailment.name : null;
     // increased crit change (0 / 1)
     formatted.crit_rate = move.meta.crit_rate;
     // adds / removes health from the executer, relative to the dealt damage
@@ -53,6 +53,13 @@ const formatMove = (move) => {
     }));
   }
 
+  // cleanup
+  Object.keys(formatted).forEach((key) => {
+    if (!formatted[key]) {
+      delete formatted[key];
+    }
+  })
+
   return formatted;
 }
 
@@ -70,6 +77,10 @@ const getMoveOverview = () => {
 
   return overview;
 };
+
+const getFormattedMoveById = (id) => {
+  return formatMove(findElementInArray(moves, 'id', id));
+}
 
 const printMoveInfo = () => {
   const moveOverview = getMoveOverview();
@@ -95,4 +106,7 @@ const printMoveInfo = () => {
 
 module.exports = {
   action: printMoveInfo,
+  formatMove,
+  getFormattedMoveById,
+  getMoveOverview,
 };

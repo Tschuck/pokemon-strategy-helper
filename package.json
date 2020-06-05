@@ -13,6 +13,7 @@
   "scripts": {
     "setup-data": "node index.js setup-data",
     "stats": "node index.js stats",
+    "pokemon": "node index.js pokemon",
     "moves": "node index.js moves"
   },
   "devDependencies": {

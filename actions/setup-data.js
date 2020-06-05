@@ -3,6 +3,8 @@ const fs = require('fs');
 const fse = require('fs-extra');
 const path = require('path');
 
+const { getIdFromUrl } = require('../utils');
+
 const basePath = path.resolve(`${__dirname}/..`);
 const dataFolder = `${basePath}/data`;
 const statusFile = `.status.json`;
@@ -27,10 +29,6 @@ const utils = {
     const folderPath = splitPath.slice(0, splitPath.length - 1).join('/');
     fse.ensureDirSync(folderPath);
     fse.writeJSONSync(fullPath, value);
-  },
-  getIdFromUrl: (url) => {
-    const splitUrl = url.split('/');
-    return parseInt(splitUrl[splitUrl.length - 2]);
   },
   getNestedEvolutions: (evolutionChain) => {
     let evolutions = [...evolutionChain.evolves_to];
@@ -122,14 +120,14 @@ const buildFullEvolvedDex = async () => {
       // actual "fully evolved", because they never evolve
       previous.all = [
         ...previous.all,
-        ...evolutions.map(subEvolution => utils.getIdFromUrl(subEvolution.species.url))
+        ...evolutions.map(subEvolution => getIdFromUrl(subEvolution.species.url))
       ];
       // only pokemon that are full evolved
       previous.full = [
         ...previous.full,
         ...evolutions
           .filter(subEvolution => subEvolution.evolves_to.length === 0)
-          .map(subEvolution => utils.getIdFromUrl(subEvolution.species.url)),
+          .map(subEvolution => getIdFromUrl(subEvolution.species.url)),
       ];
     }));
 
@@ -176,10 +174,37 @@ const buildMoves = async () => {
   }, []);
 };
 
+const buildTypes = async () => {
+  await utils.loadApiList('type', async (previous, newEntries) => {
+    const formatted = await Promise.all(newEntries.map(async (typeObj) => {
+      const {
+        damage_relations,
+        id,
+        name,
+      } = (await axios.get(typeObj.url)).data;
+
+      Object.keys(damage_relations).forEach((key) => {
+        damage_relations[key] = damage_relations[key].map((relation) => {
+          return relation.name;
+        });
+      });
+
+      return {
+        damage_relations,
+        id,
+        name,
+      }
+    }));
+
+    return [...previous, ...formatted];
+  }, []);
+};
+
 const action = async () => {
   await buildPokedex();
   await buildFullEvolvedDex();
   await buildMoves();
+  await buildTypes();
 }
 
 module.exports = {
