@@ -1,6 +1,6 @@
 const pokedex = require('../data/pokemon.json');
 const allTypes = require('../data/type');
-const { findElementInArray, getIdFromUrl, sortByKey } = require('../utils');
+const { findElementInArray, getIdFromUrl, sortByKey, ensureObjEntry } = require('../utils');
 const { getFormattedMoveById } = require('./moves');
 const { getTypeAverage, getPokemonStats } = require('./stats');
 
@@ -101,6 +101,106 @@ const getPokemonMoveCategories = (pokemon) => {
   }
 };
 
+const getFlatTypes = (pokemon) => pokemon.types.map(({ type }) => type.name);
+
+const calculateAverageDmg = (pokemon, move) => {
+  // get all types that gets double dmg from this move
+  const doubleDamageTo = findElementInArray(allTypes, 'name', move.type).damage_relations.double_damage_to;
+  // calculate stat average for all double dmg to types
+  const targetStats = { };
+  doubleDamageTo.forEach((type) => {
+    Object.keys(typeAverage[type]).forEach((statKey) => {
+      if (statKey !== 'total') {
+        ensureObjEntry(targetStats, statKey, []);
+        targetStats[statKey].push(typeAverage[type][statKey].avg); 
+      }
+    });
+  });
+  // calculate average of possible target stats
+  Object.keys(targetStats).forEach((statKey) => {
+    targetStats[statKey] = parseInt(targetStats[statKey].reduce((a, b) => a + b, 0) / targetStats[statKey].length);
+  });
+
+  const types1 = getFlatTypes(pokemon);
+  const stats1 = getPokemonStats(pokemon);
+  const types2 = doubleDamageTo;
+  const stats2 = targetStats;
+  const dmgType = move.dmgClass === 'physical' ? 'attack' : 'special-attack';
+  const defenseType = move.dmgClass === 'physical' ? 'defense' : 'special-defense';
+  // calculating everytime from level 1 with base stats for generel purposes
+  // sample from https://www.pokewiki.de/Schaden
+  let dmg = 50 * 2; // level adjust for level 50 with base stats
+  dmg = Math.floor(dmg / 5); // level adjust 2
+  dmg = Math.floor(dmg + 2); // level adjust 3
+  dmg = Math.floor(dmg * move.power); // base damage move
+  dmg = Math.floor(dmg * stats1[dmgType]); // damage pokemon 1
+  dmg = Math.floor(dmg / 50); // general reduce
+  dmg = Math.floor(dmg / stats2[defenseType]); // defense of pokemon 2);
+  dmg = Math.floor(dmg * 1); // F1
+  dmg = Math.floor(dmg + 2);
+  dmg = Math.floor(dmg * (move.flinch_chance === 100 ? 2 : 1)); // critical hit
+  dmg = Math.floor(dmg * 1); // F2
+  dmg = Math.floor(dmg * 100); // maximum random factor
+  dmg = Math.floor(dmg / 100);
+  dmg = Math.floor(dmg * (types1.indexOf(move.type) !== -1 ? 1.5 : 1)); // STAB factor
+  dmg = Math.floor(dmg * (types2.indexOf(move.type) !== -1 ? 2 : 1)); // enemy type target
+  dmg = Math.floor(dmg * 1); // ignore multiple type calculation
+  dmg = Math.floor(dmg * 1);; // F3
+
+  return dmg;
+};
+
+const categorizePokemonMoves = (pokemon) => {
+  const moves = pokemon.moves.map((move) => getFormattedMoveById(getIdFromUrl(move.url)));
+  const dmgMoves = { };
+  const statusMoves = {
+    heals: sortByKey(moves.filter((move) => move.healing > 0), [ 'healing' ]),
+    drains: sortByKey(moves.filter((move) => move.drain > 0), [ 'drain', 'power' ]),
+    field: moves.filter((move) => move.target === 'entire-field'),
+    opponentField: moves.filter((move) => move.target === 'opponents-field'),
+    userField: moves.filter((move) => move.target === 'users-field'),
+    statIncrease: {},
+    statDecrease: {},
+  };
+
+  // checkup stat change attacks
+  moves.forEach((move) => {
+    move.stat_changes.forEach((change) => {
+      const toApply = change.type > 0 ? statusMoves.statIncrease : statusMoves.statDecrease;
+      ensureObjEntry(toApply, change.stat, []);
+      toApply[change.stat].push({
+        ...change,
+        accuracy: move.accuracy,
+        id: move.id,
+        power: move.power,
+        averageDmg: calculateAverageDmg(pokemon, move),
+      });
+      toApply[change.stat] = sortByKey(toApply[change.stat], [
+        { key: 'type', reverse: change.type < 0 },
+        'power'
+      ]);
+    });
+  });
+
+  // checkup dmg moves
+  moves.forEach((move) => {
+    if (move.power > 0) {
+      ensureObjEntry(dmgMoves, move.type, []);
+      dmgMoves[move.type].push({
+        averageDmg: calculateAverageDmg(pokemon, move),
+        ...move,
+      });
+      dmgMoves[move.type] = sortByKey(dmgMoves[move.type], [ 'averageDmg' ]);
+    }
+  });
+
+  // return array
+  return {
+    statusMoves,
+    dmgMoves,
+  };
+};
+
 /**
  * Gets the stastic for pokemon.
  *
@@ -109,22 +209,14 @@ const getPokemonMoveCategories = (pokemon) => {
  */
 const getStasticForPokemon = (id) => {
   const pokemon = findElementInArray(pokedex, 'id', 3);
-  const types = pokemon.types.map(({ type }) => type.name);
+  const types = getFlatTypes(pokemon);
   const stats = getPokemonStats(pokemon);
-  const moves = pokemon.moves.map((move) => getFormattedMoveById(getIdFromUrl(move.url)));
-  const moveCategories = getPokemonMoveCategories(pokemon);
-
-  // const selectedMoves = [
-  //   moves.primary1.slice(0, 3),
-  //   moves.primary2.slice(0, 3),
-  // ];
 
   return {
     name: pokemon.name,
-    moves,
-    moveCategories,
     stats,
     types,
+    moves: categorizePokemonMoves(pokemon),
   };
 };
 
