@@ -23,53 +23,6 @@ const statAdjustor = 0;
 //   Pivot: force to switch
 //   
 
-const getSuggestedDmgClass = (pokemon, type, returnObj = false) => {
-  if (!type) {
-    return;
-  }
-
-  const stats = getPokemonStats(pokemon);
-  const physical = [];
-  const special = [];
-
-  // if stats are very distant from each other, prever this one
-  if ((stats.attack + statAdjustor) > stats['special-attack']) {
-    physical.push({ attack: stats.attack, 'special-attack': stats['special-attack'] });
-  } else if ((stats['special-attack'] + statAdjustor) > stats.attack) {
-    special.push({ attack: stats.attack, 'special-attack': stats['special-attack'] });
-  }
-
-  // check all double dmg types and check how to do the most damage 
-  const doubleDamageTo = findElementInArray(allTypes, 'name', type).damage_relations.double_damage_to;
-  doubleDamageTo.forEach((dmgToType) => {
-    const typeAvgObj = typeAverage[dmgToType];
-    const defense = typeAvgObj['defense'].perc.overAdj;
-    const spDefense = typeAvgObj['special-defense'].perc.overAdj;
-    let pushTo;
-    if (defense + statAdjustor > spDefense) {
-      pushTo = physical;
-    } else if (defense + statAdjustor < spDefense) {
-      pushTo = special;
-    }
-
-    if (pushTo) {
-      pushTo.push({
-        'special-defense': spDefense,
-        defense,
-        type: dmgToType,
-      });
-    }
-  });
-
-  if (returnObj) {
-    return { physical, special };
-  }
-
-  return physical.length === special.length
-    ? 'neutral'
-    : (physical.length > special.length ? 'physical' : 'special');
-};
-
 const getPokemonMoveCategories = (pokemon) => {
   const moves = pokemon.moves.map((move) => getFormattedMoveById(getIdFromUrl(move.url)));
   const types = pokemon.types.map(({ type }) => type.name);
@@ -103,12 +56,10 @@ const getPokemonMoveCategories = (pokemon) => {
 
 const getFlatTypes = (pokemon) => pokemon.types.map(({ type }) => type.name);
 
-const calculateAverageDmg = (pokemon, move) => {
-  // get all types that gets double dmg from this move
-  const doubleDamageTo = findElementInArray(allTypes, 'name', move.type).damage_relations.double_damage_to;
-  // calculate stat average for all double dmg to types
+const getAverageStatsPokemonForTypes = (types) => {
+// calculate stat average for all double dmg to types
   const targetStats = { };
-  doubleDamageTo.forEach((type) => {
+  types.forEach((type) => {
     Object.keys(typeAverage[type]).forEach((statKey) => {
       if (statKey !== 'total') {
         ensureObjEntry(targetStats, statKey, []);
@@ -120,6 +71,15 @@ const calculateAverageDmg = (pokemon, move) => {
   Object.keys(targetStats).forEach((statKey) => {
     targetStats[statKey] = parseInt(targetStats[statKey].reduce((a, b) => a + b, 0) / targetStats[statKey].length);
   });
+
+  return targetStats;
+};
+
+const calculateAverageDmg = (pokemon, move) => {
+  // get all types that gets double dmg from this move
+  const doubleDamageTo = findElementInArray(allTypes, 'name', move.type).damage_relations.double_damage_to;
+  // calculate stat average for all double dmg to types
+  const targetStats = getAverageStatsPokemonForTypes(doubleDamageTo);
 
   const types1 = getFlatTypes(pokemon);
   const stats1 = getPokemonStats(pokemon);
@@ -201,6 +161,63 @@ const categorizePokemonMoves = (pokemon) => {
   };
 };
 
+const getDamageRelation = (type, relation) => {
+  if (type) {
+    return findElementInArray(allTypes, 'name', type).damage_relations[relation] || [];
+  }
+  return [];
+}
+
+const getAverageEnemy = (pokemon) => {
+  const types = getFlatTypes(pokemon);
+  // get all types that gets double dmg from / to this pokemon
+  const doubleDmgFrom1 = getDamageRelation(types[0], 'double_damage_from');
+  const doubleDmgFrom2 = getDamageRelation(types[1], 'double_damage_from');
+  const doubleDmgTo1 = getDamageRelation(types[0], 'double_damage_to');
+  const doubleDmgTo2 = getDamageRelation(types[1], 'double_damage_to');
+
+  return {
+    doubleDmgFrom: getAverageStatsPokemonForTypes([].concat(doubleDmgFrom1, doubleDmgFrom2)),
+    doubleDmgTo: getAverageStatsPokemonForTypes([].concat(doubleDmgTo1, doubleDmgTo2)),
+  };
+};
+
+const getSortedDamageMoveTypes = (pokemon) => {
+  const types = getFlatTypes(pokemon);
+  // sort other types by damage from relations, so we can sort suggestion move types by the less
+  // dangerous ones
+  let relationOrder = [
+    'no_damage_from',
+    'half_damage_from',
+    'double_damage_from',
+  ];
+  let allCoveredTypes = [];
+  const normalDamage = [];
+
+  relationOrder = relationOrder.map((relation) => {
+    const relations1 = getDamageRelation(types[0], relation);
+    const relations2 = getDamageRelation(types[1], relation);
+
+    const combined = [...new Set([ ...relations1, ...relations2 ])];
+    allCoveredTypes = [ ...allCoveredTypes, combined ];
+    return combined;
+  });
+
+  // normal damage to types are not covered within the move dmg relation
+  allTypes.forEach((type) => {
+    if (allCoveredTypes.indexOf(type) === -1) {
+      normalDamage.push(type.name);
+    }
+  });
+  // overwrite double_dmg_from with the normal dmg types, to reduce risk
+  relationOrder[2] = normalDamage;
+
+  return [
+    types,
+    ...relationOrder,
+  ];
+}
+
 /**
  * Gets the stastic for pokemon.
  *
@@ -213,10 +230,12 @@ const getStasticForPokemon = (id) => {
   const stats = getPokemonStats(pokemon);
 
   return {
+    averageEnemy: getAverageEnemy(pokemon),
+    moves: categorizePokemonMoves(pokemon),
     name: pokemon.name,
     stats,
     types,
-    moves: categorizePokemonMoves(pokemon),
+    moveTypes: getSortedDamageMoveTypes(pokemon),
   };
 };
 
